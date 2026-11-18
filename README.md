@@ -13,7 +13,7 @@ When does the presence of every large subset force one element to occur in at le
 | Exact averaging criterion for arbitrary dimensions | Written incidence count, weighted comparison, and extremal example |
 | Cutoffs on 100 and 1,000 points | Exact integer checks, all admissible cutoffs tested |
 | Finite sanity checks | Exhaustive four-point enumeration and a 960-member construction |
-| Lean targets | Candidate proofs for the unique-deletion and weighted-sum lemmas, fast binomial computation, and the numerical criterion at 59 and 60. See the Lean job for compilation status. |
+| Lean targets | Candidate proofs for the unique-deletion, adjacent-rank counting and weighted-sum lemmas, fast binomial computation, and the numerical criterion at 59 and 60. See the Lean job for compilation status. |
 | Equivalence above the asymptotic threshold | Written proof; full Lean formalization outstanding |
 
 ## Reproduce
