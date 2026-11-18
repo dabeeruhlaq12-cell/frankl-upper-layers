@@ -61,8 +61,9 @@ theorem missing_rank_bound {n r : ℕ} (F : Finset (Finset (Fin n)))
       by_contra hxy
       have hin : x ∈ a.erase y :=
         Finset.mem_erase.mpr ⟨hxy,(Finset.mem_filter.mp hx).1⟩
+      change a.erase x = a.erase y at he
       rw [← he] at hin
-      simpa using hin
+      simp at hin
   · intro b hb
     have hsize : b.card = r := (Finset.mem_filter.mp hb).2.1
     let outside : Finset (Fin n) := Finset.univ \ b
@@ -77,7 +78,9 @@ theorem missing_rank_bound {n r : ℕ} (F : Finset (Finset (Fin n)))
     calc
       _ ≤ _ := Finset.card_le_card sub
       _ ≤ outside.card := Finset.card_image_le
-      _ = _ := by simp [outside, Finset.card_sdiff_of_subset, hsize]
+      _ = _ := by
+        change bᶜ.card = n-r
+        simp [Finset.card_compl, hsize]
 
 #print axioms missing_rank_bound
 
@@ -148,4 +151,79 @@ theorem cutoff_60 : ¬ criterion 100 60 := by
 #print axioms binomPrefix_eq
 #print axioms cutoff_59
 #print axioms cutoff_60
+
+/-- Total excess of element occurrences, multiplied by two. -/
+def mass {n : ℕ} (F : Finset (Finset (Fin n))) : ℚ :=
+  ∑ s ∈ F, (2 * (s.card : ℚ) - n)
+
+/-- Nonnegative total mass witnesses an abundant coordinate. -/
+theorem abundant_of_mass {n : ℕ} (hn : 0 < n)
+    (F : Finset (Finset (Fin n))) (hm : 0 ≤ mass F) :
+    ∃ x : Fin n, F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card := by
+  classical
+  by_contra! no
+  have hdeg (s : Finset (Fin n)) :
+      (Finset.univ.filter (fun x => x ∈ s)) = s := by ext x; simp
+  have count := Finset.sum_card_bipartiteAbove_eq_sum_card_bipartiteBelow
+    (fun (s : Finset (Fin n)) (x : Fin n) => x ∈ s) F Finset.univ
+  simp only [Finset.bipartiteAbove, Finset.bipartiteBelow, hdeg] at count
+  have all : (∑ x : Fin n, 2 * (F.filter (fun s => x ∈ s)).card) <
+      ∑ _x : Fin n, F.card := by
+    exact Finset.sum_lt_sum (fun x _ => (no x).le)
+      ⟨⟨0,hn⟩, Finset.mem_univ _, no _⟩
+  rw [← Finset.mul_sum, ← count] at all
+  simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+    smul_eq_mul] at all
+  unfold mass at hm
+  simp only [Finset.sum_sub_distrib, ← Finset.mul_sum, Finset.sum_const,
+    nsmul_eq_mul] at hm
+  have hrat : 2 * (∑ s ∈ F, (s.card : ℚ)) < (n : ℚ) * F.card := by
+    exact_mod_cast all
+  nlinarith
+
+/-- The full cube has mean rank exactly n/2 by complement symmetry. -/
+theorem mass_univ (n : ℕ) : mass (Finset.univ : Finset (Finset (Fin n))) = 0 := by
+  classical
+  let e : Finset (Fin n) ≃ Finset (Fin n) :=
+    ⟨fun s => sᶜ, fun s => sᶜ, compl_compl, compl_compl⟩
+  let g := fun s : Finset (Fin n) => 2 * (s.card : ℚ) - n
+  have neg (s : Finset (Fin n)) : g (e s) = -g s := by
+    change 2 * ((sᶜ.card : ℕ) : ℚ) - n = -(2 * (s.card : ℚ) - n)
+    have hn : s.card ≤ n := by simpa using s.card_le_univ
+    rw [Finset.card_compl, Fintype.card_fin, Nat.cast_sub hn]
+    ring
+  have h := e.sum_comp g
+  simp only [neg, Finset.sum_neg_distrib] at h
+  change (∑ x, g x) = 0
+  linarith
+
+/-- Bookkeeping for the missing ranks on a finite ground. -/
+theorem mass_missing {n : ℕ} (F : Finset (Finset (Fin n))) :
+    mass (Finset.univ \ F) =
+    ∑ i ∈ Finset.range (n+1), (2*(i : ℚ)-n) * (missingLevel F i).card := by
+  classical
+  let D := Finset.univ \ F
+  let w := fun i : ℕ => 2*(i : ℚ)-n
+  change (∑ s ∈ D, w s.card) = _
+  calc
+    _ = ∑ s ∈ D, ∑ i ∈ Finset.range (n+1), if i = s.card then w i else 0 := by
+      apply Finset.sum_congr rfl
+      intro s _
+      have hs : s.card ≤ n := by simpa using s.card_le_univ
+      simp [Finset.mem_range, Nat.lt_succ_of_le hs]
+    _ = ∑ i ∈ Finset.range (n+1), ∑ s ∈ D, if i = s.card then w i else 0 :=
+      Finset.sum_comm
+    _ = _ := by
+      apply Finset.sum_congr rfl
+      intro i _
+      have eq : D.filter (fun s => i = s.card) = missingLevel F i := by
+        ext s
+        simp [D, missingLevel, eq_comm, and_comm]
+      rw [← Finset.sum_filter, Finset.sum_const, eq, nsmul_eq_mul]
+      simp [w, mul_comm]
+
+#print axioms abundant_of_mass
+#print axioms mass_univ
+#print axioms mass_missing
+
 end UpperLayers
