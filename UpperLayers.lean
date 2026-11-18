@@ -255,7 +255,10 @@ theorem ratio_bound {n : ℕ} (F : Finset (Finset (Fin (n+1))))
     linarith only [h, e, bad]
   intro i j
   induction j with
-  | zero => intro h _; have : i = 0 := by omega; subst i; rfl
+  | zero =>
+    intro h _
+    have hi : i = 0 := by omega
+    rw [hi]
   | succ j ih =>
     intro hij hj
     by_cases he : i = j+1
@@ -287,8 +290,10 @@ theorem upper_layer_abundance {n k : ℕ} (hk : k ≤ n+1)
     have hb : 0 < b i := by dsimp [b]; exact_mod_cast Nat.choose_pos hin
     by_cases he : i = p
     · subst i
-      dsimp [ρ]
-      field_simp <;> ring
+      apply le_of_eq
+      calc
+        w p * d p = w p * (d p / b p * b p) := by rw [div_mul_cancel₀ _ hb.ne']
+        _ = _ := by dsimp [ρ]; ring
     · by_cases hlo : i < p
       · have h : ρ ≤ d i / b i := ratio_bound F closed i p hlo.le hp
         have hsign : w i ≤ 0 := by
@@ -338,6 +343,46 @@ theorem upper_layer_abundance {n k : ℕ} (hk : k ≤ n+1)
 
 #print axioms upper_layer_abundance
 
+/-- Telescope the signed binomial mass. The upper limit k is exclusive. -/
+theorem signed_identity (n k : ℕ) (hk : k ≤ n+1) :
+    (∑ i ∈ Finset.range k, (2*((i : ℚ)+1)-(n+1 : ℕ)) * n.choose i) =
+    (∑ i ∈ Finset.range k, (n.choose i : ℚ)) - (k : ℚ) * n.choose k := by
+  induction k with
+  | zero => simp
+  | succ k ih =>
+    have hkn : k ≤ n := by omega
+    have h : (n.choose (k+1) : ℚ) * (k+1 : ℕ) =
+        (n.choose k : ℚ) * (n-k : ℕ) := by
+      exact_mod_cast Nat.choose_succ_right_eq n k
+    push_cast [Nat.cast_sub hkn] at h
+    rw [Finset.sum_range_succ, ih (by omega), Finset.sum_range_succ]
+    push_cast
+    linarith only [h]
+
+theorem signed_iff_criterion (m r : ℕ) (hr : r ≤ m) :
+    signedTest (m+1) (r+1) ↔ criterion (m+2) (r+2) := by
+  unfold signedTest
+  rw [signed_identity _ _ (by omega), sub_nonpos]
+  unfold criterion
+  have h := Nat.succ_mul_choose_eq m r
+  change (m+1) * m.choose r = (m+1).choose (r+1) * (r+1) at h
+  change (_ ≤ _) ↔ (∑ i ∈ Finset.range (r+1), (m+1).choose i) ≤ (m+1)*m.choose r
+  rw [h, Nat.mul_comm ((m+1).choose (r+1)) (r+1)]
+  norm_cast
+
+/-- The binomial criterion in the research note implies abundance for all
+union-closed families on a ground of size m+2 with cutoff r+2. -/
+theorem finite_criterion {m r : ℕ} (hr : r ≤ m)
+    (F : Finset (Finset (Fin (m+2))))
+    (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F)
+    (upper : ∀ s : Finset (Fin (m+2)), r+2 ≤ s.card → s ∈ F)
+    (h : criterion (m+2) (r+2)) :
+    ∃ x : Fin (m+2), F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card :=
+  upper_layer_abundance (n := m+1) (k := r+1) (by omega) F closed upper
+    ((signed_iff_criterion m r hr).2 h)
+
+#print axioms finite_criterion
+
 set_option maxHeartbeats 12000000 in
 set_option maxRecDepth 20000 in
 theorem hundred_element_cutoff
@@ -345,10 +390,7 @@ theorem hundred_element_cutoff
     (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F)
     (upper : ∀ s : Finset (Fin 100), 59 ≤ s.card → s ∈ F) :
     ∃ x : Fin 100, F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card := by
-  apply upper_layer_abundance (n := 99) (k := 58) (by decide) F closed upper
-  unfold signedTest
-  simp_rw [← coeff_eq_choose]
-  decide
+  exact finite_criterion (m := 98) (r := 57) (by decide) F closed upper cutoff_59
 
 #print axioms hundred_element_cutoff
 

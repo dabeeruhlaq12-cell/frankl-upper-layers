@@ -13,7 +13,7 @@ When does the presence of every large subset force one element to occur in at le
 | Exact averaging criterion for arbitrary dimensions | Written incidence count, weighted comparison, and extremal example |
 | Cutoffs on 100 and 1,000 points | Exact integer checks, all admissible cutoffs tested |
 | Finite sanity checks | Exhaustive four-point enumeration and a 960-member construction |
-| Lean targets | Candidate proofs for the unique-deletion, adjacent-rank counting and weighted-sum lemmas, fast binomial computation, and the numerical criterion at 59 and 60. See the Lean job for compilation status. |
+| Lean targets | The file states the arbitrary-dimension sufficiency theorem, the 100-element abundance corollary, and numerical checks at 59 and 60. The Lean job records compilation and axiom dependencies for the tested commit. |
 | Equivalence above the asymptotic threshold | Written proof; full Lean formalization outstanding |
 
 ## Reproduce
@@ -35,6 +35,6 @@ lake build
 lake env lean -DwarningAsError=true UpperLayers.lean
 ~~~
 
-The module prints the axiom dependencies for each named result. A successful build certifies only those formal statements. In particular, the two numerical Lean goals evaluate a binomial inequality; the logical passage from that inequality to all qualifying families is in the paper proof.
+The module prints the axiom dependencies for each named result. A successful build certifies only those formal statements. The theorem `finite_criterion` connects the binomial inequality to all qualifying union-closed families. Theorem `hundred_element_cutoff` quantifies over every family on 100 points. At cutoff 60 the numerical check establishes failure of the averaging test. The proof of the asymptotic transition is in PROOF.md.
 
 [Verification workflow](.github/workflows/verify.yml)
