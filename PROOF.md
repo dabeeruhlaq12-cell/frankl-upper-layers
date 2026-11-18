@@ -76,52 +76,9 @@ This completes the construction for unbounded N and proves B by contraposition. 
 
 ## Checks and limits
 
-The attached-in-text Python checks are independent of the asymptotic proof. The first enumerates every qualifying family on four points and tests the exact criterion. At K=2,3,4 it finds 32, 1090, and 4542 qualifying families, respectively, of which 0, 0, and 98 fail uniform averaging. The second checks union closure and the signed boundary accounting for a concrete 960-member construction. Its base is an ordinary union-closed family with mixed signs, so it tests the identities without assuming a counterexample to Frankl exists.
+The scripts [check_ranks.py](check_ranks.py) and [check_padding.py](check_padding.py) test the exact criterion on all qualifying four-element families and the signed identities on a 960-member construction. The latter uses a base with mixed signs, so it tests the identities without assuming the existence of a counterexample. [check_cutoffs.py](check_cutoffs.py) independently computes the exact passing ranges using Python integers.
 
-```python
-from math import comb
-from itertools import combinations
-n=4; cube=list(range(1<<n))
-for K in range(2,n+1):
-    s=sum(comb(n-1,j) for j in range(K-1))
-    crit=(n-1)*comb(n-2,K-2)>=s
-    tail=[a for a in cube if a.bit_count()>=K]
-    low=sorted(set(cube)-set(tail))
-    count=0;fails=0
-    for flags in range(1<<len(low)):
-        F=set(tail)|{a for j,a in enumerate(low) if flags>>j&1}
-        if any(a|b not in F for a,b in combinations(F,2)):continue
-        count+=1
-        fails+=sum(2*a.bit_count()-n for a in F)<0
-    assert crit==(fails==0)
-    print(K,count,fails)
-```
-```python
-from itertools import product
-from math import comb
-B = {1, 2, 3, 7}
-b = 3
-selectors = {a | (d << b) for a,d in product(B, repeat=2)}
-special = {9: 0, 18: 1}
-L, N = 6, 12
-F = set()
-for q,z in product(selectors, range(1 << L)):
-    if q not in special or (z >> (b*special[q])) & 7 in B:
-        F.add((q << L) | z)
-assert all(a|d in F for a in F for d in F)
-def balance(f,i):
-    return sum(1-2*((a >> i) & 1) for a in f)
-for j in range(L):
-    assert balance(F,j) == (1<<b)*balance(B,j%b)
-for K in range(1,N+1):
-    tail = {a for a in range(1 << N) if a.bit_count() >= K}
-    H = F | tail
-    for q,t in special.items():
-        exc = sum(a >> L == q for a in tail)
-        for i in range(t*b,(t+1)*b):
-            assert balance(H,i) >= balance(F,i)-comb(N-1,K-1)-exc
-print(len(F), 'members; closure, six signed identities and 72 threshold inequalities passed')
-```
+[UpperLayers.lean](UpperLayers.lean) gives the formal finite statements. Section B and the asymptotic estimates in A are written arguments. The repository workflow runs both the Python checks and the finite Lean proof.
 
 ## Context
 

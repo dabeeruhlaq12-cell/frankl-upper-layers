@@ -32,7 +32,8 @@ For the formal targets, use Lean and mathlib v4.19.0. With elan installed:
 lake update
 lake exe cache get
 lake build
-lake env lean -DwarningAsError=true UpperLayers.lean
+lake env lean -DwarningAsError=true UpperLayers.lean > axioms.log
+python3 check_axioms.py axioms.log
 ~~~
 
 The module prints the axiom dependencies for each named result. A successful build certifies only those formal statements. The theorem `finite_criterion` connects the binomial inequality to all qualifying union-closed families. Theorem `hundred_element_cutoff` quantifies over every family on 100 points. At cutoff 60 the numerical check establishes failure of the averaging test. The proof of the asymptotic transition is in PROOF.md.

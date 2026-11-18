@@ -441,7 +441,7 @@ theorem star_ranks {n k i : ℕ} (x : Fin (n+1)) :
       intro h
       have hsub := (Finset.mem_powersetCard.mp hs).1
       have := hsub h
-      simpa [u] using this
+      simp [u] at this
     have heq : missingLevel (starFamily x k) (i+1) =
         level.image (fun s => insert x s) := by
       ext s
@@ -459,7 +459,7 @@ theorem star_ranks {n k i : ℕ} (x : Fin (n+1)) :
         obtain ⟨t,ht,rfl⟩ := Finset.mem_image.mp h
         have hcard := (Finset.mem_powersetCard.mp ht).2
         have hs : (insert x t).card = i+1 := by rw [Finset.card_insert_of_not_mem (hx ht), hcard]
-        simp [missingLevel, starFamily, hs, show ¬k+1 ≤ i+1 by omega]
+        simp [missingLevel, starFamily, hs, hi, show ¬k+1 ≤ i+1 by omega]
     rw [heq, Finset.card_image_of_injOn]
     · dsimp [level]
       rw [Finset.card_powersetCard]
