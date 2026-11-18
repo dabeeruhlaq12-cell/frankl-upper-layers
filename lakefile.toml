@@ -1,0 +1,11 @@
+name = "frankl_upper_layers"
+version = "0.1.0"
+defaultTargets = ["UpperLayers"]
+
+[[lean_lib]]
+name = "UpperLayers"
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.19.0"

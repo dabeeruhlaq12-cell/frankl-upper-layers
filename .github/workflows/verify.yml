@@ -1,0 +1,23 @@
+name: Verify research checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  finite-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 check_cutoffs.py
+          python3 check_ranks.py
+          python3 check_padding.py
+  lean-targets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+      - name: Recheck source and inspect axiom reports
+        run: |
+          set -euo pipefail
+          lake env lean -DwarningAsError=true UpperLayers.lean | tee axioms.log
+          if grep -Eq 'sorryAx|Lean\.ofReduceBool' axioms.log; then exit 1; fi
