@@ -10,10 +10,10 @@ When does the presence of every large subset force one element to occur in at le
 
 | Claim | Available evidence |
 |---|---|
-| Exact averaging criterion for arbitrary dimensions | Written incidence count, weighted comparison, and extremal example |
+| Exact averaging criterion for arbitrary dimensions | Lean theorem `exact_averaging_criterion` and a written proof with an extremal example |
 | Cutoffs on 100 and 1,000 points | Exact integer checks, all admissible cutoffs tested |
 | Finite sanity checks | Exhaustive four-point enumeration and a 960-member construction |
-| Lean targets | The file states the arbitrary-dimension sufficiency theorem, the 100-element abundance corollary, and numerical checks at 59 and 60. The Lean job records compilation and axiom dependencies for the tested commit. |
+| Lean targets | See `UpperLayers.lean` and the verification workflow for the precise formal statements, compilation status and axiom reports. |
 | Equivalence above the asymptotic threshold | Written proof; full Lean formalization outstanding |
 
 ## Reproduce

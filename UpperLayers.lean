@@ -44,7 +44,8 @@ theorem missing_rank_bound {n r : ℕ} (F : Finset (Finset (Fin n)))
     have partition : good.card + bad.card = a.card := by
       have hu : good ∪ bad = a := by
         ext x
-        simp [good, bad] <;> tauto
+        simp [good, bad]
+        tauto
       have hd : Disjoint good bad := Finset.disjoint_left.mpr (by
         intro x hx hy
         exact (Finset.mem_filter.mp hx).2 (Finset.mem_filter.mp hy).2)
@@ -271,12 +272,12 @@ positive missing ranks allowed, so the upper layer starts at k+1. -/
 def signedTest (n k : ℕ) : Prop :=
   (∑ i ∈ Finset.range k, (2*((i : ℚ)+1)-(n+1 : ℕ)) * n.choose i) ≤ 0
 
-theorem upper_layer_abundance {n k : ℕ} (hk : k ≤ n+1)
+theorem upper_layer_mass {n k : ℕ} (hk : k ≤ n+1)
     (F : Finset (Finset (Fin (n+1))))
     (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F)
     (upper : ∀ s : Finset (Fin (n+1)), k+1 ≤ s.card → s ∈ F)
     (test : signedTest n k) :
-    ∃ x : Fin (n+1), F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card := by
+    0 ≤ mass F := by
   classical
   let w := fun i : ℕ => 2*((i : ℚ)+1)-(n+1 : ℕ)
   let d := fun i : ℕ => ((missingLevel F (i+1)).card : ℚ)
@@ -333,13 +334,20 @@ theorem upper_layer_abundance {n k : ℕ} (hk : k ≤ n+1)
     push_cast at hs
     have hz : 0 ≤ ((missingLevel F 0).card : ℚ) := by positivity
     nlinarith
-  apply abundant_of_mass (by omega) F
   have hcube := mass_univ (n+1)
   have hsplit : mass (Finset.univ \ F) + mass F =
       mass (Finset.univ : Finset (Finset (Fin (n+1)))) := by
     unfold mass
     exact Finset.sum_sdiff (Finset.subset_univ F)
   linarith
+
+theorem upper_layer_abundance {n k : ℕ} (hk : k ≤ n+1)
+    (F : Finset (Finset (Fin (n+1))))
+    (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F)
+    (upper : ∀ s : Finset (Fin (n+1)), k+1 ≤ s.card → s ∈ F)
+    (test : signedTest n k) :
+    ∃ x : Fin (n+1), F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card := by
+  exact abundant_of_mass (by omega) F (upper_layer_mass hk F closed upper test)
 
 #print axioms upper_layer_abundance
 
@@ -393,5 +401,118 @@ theorem hundred_element_cutoff
   exact finite_criterion (m := 98) (r := 57) (by decide) F closed upper cutoff_59
 
 #print axioms hundred_element_cutoff
+
+/-- Complement of the truncated star of missing sets. -/
+def starFamily {n : ℕ} (x : Fin (n+1)) (k : ℕ) :=
+  Finset.univ.filter (fun s : Finset (Fin (n+1)) => x ∉ s ∨ k+1 ≤ s.card)
+
+theorem star_upper {n : ℕ} (x : Fin (n+1)) (k : ℕ)
+    (s : Finset (Fin (n+1))) (h : k+1 ≤ s.card) : s ∈ starFamily x k := by
+  simp [starFamily, h]
+
+theorem star_closed {n : ℕ} (x : Fin (n+1)) (k : ℕ)
+    (s t : Finset (Fin (n+1))) (hs : s ∈ starFamily x k) (ht : t ∈ starFamily x k) :
+    s ∪ t ∈ starFamily x k := by
+  have hs' := (Finset.mem_filter.mp hs).2
+  have ht' := (Finset.mem_filter.mp ht).2
+  apply Finset.mem_filter.mpr
+  refine ⟨Finset.mem_univ _, ?_⟩
+  rcases hs' with h | h
+  · rcases ht' with g | g
+    · left; simpa using And.intro h g
+    · right; exact g.trans (Finset.card_le_card Finset.subset_union_right)
+  · right; exact h.trans (Finset.card_le_card Finset.subset_union_left)
+
+theorem star_zero {n : ℕ} (x : Fin (n+1)) (k : ℕ) :
+    missingLevel (starFamily x k) 0 = ∅ := by
+  apply Finset.eq_empty_iff_forall_not_mem.mpr
+  intro s hs
+  have h : s.card = 0 ∧ s ∉ starFamily x k := (Finset.mem_filter.mp hs).2
+  have he := Finset.card_eq_zero.mp h.1
+  exact h.2 (by simp [he, starFamily])
+
+theorem star_ranks {n k i : ℕ} (x : Fin (n+1)) :
+    (missingLevel (starFamily x k) (i+1)).card = if i < k then n.choose i else 0 := by
+  classical
+  split_ifs with hi
+  · let u := (Finset.univ : Finset (Fin (n+1))).erase x
+    let level := u.powersetCard i
+    have hx {s : Finset (Fin (n+1))} (hs : s ∈ level) : x ∉ s := by
+      intro h
+      have hsub := (Finset.mem_powersetCard.mp hs).1
+      have := hsub h
+      simpa [u] using this
+    have heq : missingLevel (starFamily x k) (i+1) =
+        level.image (fun s => insert x s) := by
+      ext s
+      constructor
+      · intro h
+        have hp : s.card = i+1 ∧ s ∉ starFamily x k := (Finset.mem_filter.mp h).2
+        have hxs : x ∈ s := by
+          by_contra hnot
+          exact hp.2 (Finset.mem_filter.mpr ⟨Finset.mem_univ _, Or.inl hnot⟩)
+        apply Finset.mem_image.mpr
+        refine ⟨s.erase x, Finset.mem_powersetCard.mpr ⟨?_, ?_⟩, Finset.insert_erase hxs⟩
+        · intro y hy; exact Finset.mem_erase.mpr ⟨(Finset.mem_erase.mp hy).1, Finset.mem_univ _⟩
+        · simp [Finset.card_erase_of_mem hxs, hp.1]
+      · intro h
+        obtain ⟨t,ht,rfl⟩ := Finset.mem_image.mp h
+        have hcard := (Finset.mem_powersetCard.mp ht).2
+        have hs : (insert x t).card = i+1 := by rw [Finset.card_insert_of_not_mem (hx ht), hcard]
+        simp [missingLevel, starFamily, hs, show ¬k+1 ≤ i+1 by omega]
+    rw [heq, Finset.card_image_of_injOn]
+    · dsimp [level]
+      rw [Finset.card_powersetCard]
+      simp [u, Finset.card_erase_of_mem]
+    · intro s hs t ht he
+      change insert x s = insert x t at he
+      have he' := congrArg (fun a : Finset (Fin (n+1)) => a.erase x) he
+      simpa [Finset.erase_insert (hx hs), Finset.erase_insert (hx ht)] using he'
+  · apply Finset.card_eq_zero.mpr
+    apply Finset.eq_empty_iff_forall_not_mem.mpr
+    intro s hs
+    have hp : s.card = i+1 ∧ s ∉ starFamily x k := (Finset.mem_filter.mp hs).2
+    exact hp.2 (star_upper x k s (by omega))
+
+theorem star_mass {n k : ℕ} (hk : k ≤ n+1) (x : Fin (n+1)) :
+    mass (starFamily x k) =
+      -(∑ i ∈ Finset.range k, (2*((i : ℚ)+1)-(n+1 : ℕ)) * n.choose i) := by
+  classical
+  let F := starFamily x k
+  have split : mass (Finset.univ \ F) + mass F = 0 := by
+    rw [← mass_univ (n+1)]
+    exact Finset.sum_sdiff (Finset.subset_univ F)
+  rw [mass_missing, Finset.sum_range_succ'] at split
+  dsimp [F] at split
+  simp only [star_zero, Finset.card_empty, Nat.cast_zero, mul_zero, add_zero,
+    star_ranks, Nat.cast_ite, Nat.cast_add, Nat.cast_one] at split
+  have ht : (Finset.range (n+1)).filter (fun i => i < k) = Finset.range k := by
+    ext i
+    simp only [Finset.mem_filter, Finset.mem_range]
+    omega
+  simp_rw [mul_ite, mul_zero] at split
+  rw [← Finset.sum_filter, ht] at split
+  push_cast
+  linarith
+
+/-- Sharp finite characterization of the averaging property. -/
+theorem exact_averaging_criterion (m r : ℕ) (hr : r ≤ m) :
+    criterion (m+2) (r+2) ↔
+    ∀ F : Finset (Finset (Fin (m+2))),
+      (∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F) →
+      (∀ s : Finset (Fin (m+2)), r+2 ≤ s.card → s ∈ F) → 0 ≤ mass F := by
+  constructor
+  · intro hc F closed upper
+    exact upper_layer_mass (n := m+1) (k := r+1) (by omega) F closed upper
+      ((signed_iff_criterion m r hr).2 hc)
+  · intro h
+    let x : Fin (m+2) := ⟨0, by omega⟩
+    have hstar := h (starFamily x (r+1)) (star_closed x (r+1)) (star_upper x (r+1))
+    rw [star_mass (n := m+1) (by omega)] at hstar
+    apply (signed_iff_criterion m r hr).1
+    unfold signedTest
+    linarith
+
+#print axioms exact_averaging_criterion
 
 end UpperLayers
