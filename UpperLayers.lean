@@ -165,7 +165,7 @@ theorem abundant_of_mass {n : ℕ} (hn : 0 < n)
   have hdeg (s : Finset (Fin n)) :
       (Finset.univ.filter (fun x => x ∈ s)) = s := by ext x; simp
   have count := Finset.sum_card_bipartiteAbove_eq_sum_card_bipartiteBelow
-    (fun (s : Finset (Fin n)) (x : Fin n) => x ∈ s) F Finset.univ
+    (fun (s : Finset (Fin n)) (x : Fin n) => x ∈ s) (s := F) (t := Finset.univ)
   simp only [Finset.bipartiteAbove, Finset.bipartiteBelow, hdeg] at count
   have all : (∑ x : Fin n, 2 * (F.filter (fun s => x ∈ s)).card) <
       ∑ _x : Fin n, F.card := by
@@ -225,5 +225,131 @@ theorem mass_missing {n : ℕ} (F : Finset (Finset (Fin n))) :
 #print axioms abundant_of_mass
 #print axioms mass_univ
 #print axioms mass_missing
+
+/-- Increasing the rank decreases the fraction of the pointed-cube rank
+occupied by missing sets. The ground size here is n+1. -/
+theorem ratio_bound {n : ℕ} (F : Finset (Finset (Fin (n+1))))
+    (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F) :
+    ∀ i j : ℕ, i ≤ j → j ≤ n →
+    ((missingLevel F (j+1)).card : ℚ) / n.choose j ≤
+      ((missingLevel F (i+1)).card : ℚ) / n.choose i := by
+  let d := fun i => ((missingLevel F (i+1)).card : ℚ)
+  let b := fun i => (n.choose i : ℚ)
+  have pos {i} (hi : i ≤ n) : 0 < b i := by
+    dsimp [b]; exact_mod_cast Nat.choose_pos hi
+  have step (i : ℕ) (hi : i+1 ≤ n) : d (i+1) / b (i+1) ≤ d i / b i := by
+    have raw := missing_rank_bound F closed (r := i+1)
+    have raw' : d (i+1) * (i+1 : ℕ) ≤ d i * (n-i : ℕ) := by
+      dsimp [d]
+      exact_mod_cast (show (missingLevel F (i+1+1)).card * (i+1) ≤
+          (missingLevel F (i+1)).card * (n-i) by simpa using raw)
+    have eq : b (i+1) * (i+1 : ℕ) = b i * (n-i : ℕ) := by
+      dsimp [b]; exact_mod_cast Nat.choose_succ_right_eq n i
+    apply (div_le_div_iff₀ (pos hi) (pos (by omega))).2
+    have h := mul_le_mul_of_nonneg_right raw' (pos (by omega : i ≤ n)).le
+    have e := congrArg (fun t : ℚ => d i * t) eq
+    have hi' : 0 < ((i+1 : ℕ) : ℚ) := by positivity
+    by_contra! hlt
+    change d i * (b (i+1) * _) = d i * (b i * _) at e
+    have bad := mul_pos (sub_pos.mpr hlt) hi'
+    linarith only [h, e, bad]
+  intro i j
+  induction j with
+  | zero => intro h _; have : i = 0 := by omega; subst i; rfl
+  | succ j ih =>
+    intro hij hj
+    by_cases he : i = j+1
+    · subst i; rfl
+    · exact (step j hj).trans (ih (by omega) (by omega))
+
+/-- Signed pointed-binomial test. The paper shows that this test is
+equivalent to its binomial-prefix criterion. k is the number of
+positive missing ranks allowed, so the upper layer starts at k+1. -/
+def signedTest (n k : ℕ) : Prop :=
+  (∑ i ∈ Finset.range k, (2*((i : ℚ)+1)-(n+1 : ℕ)) * n.choose i) ≤ 0
+
+theorem upper_layer_abundance {n k : ℕ} (hk : k ≤ n+1)
+    (F : Finset (Finset (Fin (n+1))))
+    (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F)
+    (upper : ∀ s : Finset (Fin (n+1)), k+1 ≤ s.card → s ∈ F)
+    (test : signedTest n k) :
+    ∃ x : Fin (n+1), F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card := by
+  classical
+  let w := fun i : ℕ => 2*((i : ℚ)+1)-(n+1 : ℕ)
+  let d := fun i : ℕ => ((missingLevel F (i+1)).card : ℚ)
+  let b := fun i : ℕ => (n.choose i : ℚ)
+  let p := n/2
+  have hp : p ≤ n := by dsimp [p]; omega
+  let ρ := d p / b p
+  have hr : 0 ≤ ρ := by dsimp [ρ,d,b]; positivity
+  have bound (i : ℕ) (hi : i < k) : w i * d i ≤ ρ * (w i * b i) := by
+    have hin : i ≤ n := by omega
+    have hb : 0 < b i := by dsimp [b]; exact_mod_cast Nat.choose_pos hin
+    by_cases he : i = p
+    · subst i
+      dsimp [ρ]
+      field_simp <;> ring
+    · by_cases hlo : i < p
+      · have h : ρ ≤ d i / b i := ratio_bound F closed i p hlo.le hp
+        have hsign : w i ≤ 0 := by
+          dsimp [w,p] at *
+          exact_mod_cast (show (2*(i+1) : ℤ) - (n+1 : ℕ) ≤ 0 by omega)
+        have hh := mul_le_mul_of_nonpos_left ((le_div_iff₀ hb).1 h) hsign
+        linarith only [hh]
+      · have h : d i / b i ≤ ρ := ratio_bound F closed p i (by omega) hin
+        have hsign : 0 ≤ w i := by
+          dsimp [w,p] at *
+          exact_mod_cast (show (0 : ℤ) ≤ 2*(i+1) - (n+1 : ℕ) by omega)
+        have hh := mul_le_mul_of_nonneg_left ((div_le_iff₀ hb).1 h) hsign
+        linarith only [hh]
+  have hs : (∑ i ∈ Finset.range k, w i * d i) ≤ 0 := by
+    have h := Finset.sum_le_sum (s := Finset.range k)
+      (fun i hi => bound i (Finset.mem_range.mp hi))
+    rw [← Finset.mul_sum] at h
+    exact h.trans (mul_nonpos_of_nonneg_of_nonpos hr test)
+  have trunc : (∑ i ∈ Finset.range k, w i * d i) =
+      ∑ i ∈ Finset.range (n+1), w i * d i := by
+    apply Finset.sum_subset (Finset.range_mono hk)
+    intro i _ hi
+    have hk' : k ≤ i := by simpa using hi
+    have empty : missingLevel F (i+1) = ∅ := by
+      apply Finset.eq_empty_iff_forall_not_mem.mpr
+      intro s h
+      have hh : s.card = i+1 ∧ s ∉ F := (Finset.mem_filter.mp h).2
+      exact hh.2 (upper s (by omega))
+    simp [d, empty]
+  rw [trunc] at hs
+  have hmissing : mass (Finset.univ \ F) ≤ 0 := by
+    rw [mass_missing, Finset.sum_range_succ']
+    change (∑ i ∈ Finset.range (n+1), (2*((i+1 : ℕ) : ℚ)-(n+1 : ℕ)) * d i) +
+        (2*(0:ℚ)-(n+1 : ℕ)) * ((missingLevel F 0).card : ℚ) ≤ 0
+    push_cast
+    dsimp [w] at hs
+    push_cast at hs
+    have hz : 0 ≤ ((missingLevel F 0).card : ℚ) := by positivity
+    nlinarith
+  apply abundant_of_mass (by omega) F
+  have hcube := mass_univ (n+1)
+  have hsplit : mass (Finset.univ \ F) + mass F =
+      mass (Finset.univ : Finset (Finset (Fin (n+1)))) := by
+    unfold mass
+    exact Finset.sum_sdiff (Finset.subset_univ F)
+  linarith
+
+#print axioms upper_layer_abundance
+
+set_option maxHeartbeats 12000000 in
+set_option maxRecDepth 20000 in
+theorem hundred_element_cutoff
+    (F : Finset (Finset (Fin 100)))
+    (closed : ∀ s t, s ∈ F → t ∈ F → s ∪ t ∈ F)
+    (upper : ∀ s : Finset (Fin 100), 59 ≤ s.card → s ∈ F) :
+    ∃ x : Fin 100, F.card ≤ 2 * (F.filter (fun s => x ∈ s)).card := by
+  apply upper_layer_abundance (n := 99) (k := 58) (by decide) F closed upper
+  unfold signedTest
+  simp_rw [← coeff_eq_choose]
+  decide
+
+#print axioms hundred_element_cutoff
 
 end UpperLayers
